@@ -293,7 +293,14 @@ function App() {
       </>
     );
   } else if (onboardingStep === "flow") {
-    content = <OnboardingFlow onComplete={() => setOnboardingStep("done")} />;
+    content = (
+      <OnboardingFlow
+        onComplete={(opts) => {
+          if (opts?.openCloud) setCurrentSection("cloud");
+          setOnboardingStep("done");
+        }}
+      />
+    );
   } else if (onboardingStep === "permissions") {
     content = (
       <ReturningPermissions

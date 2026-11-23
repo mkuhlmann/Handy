@@ -1571,3 +1571,37 @@ mod tests {
         }
     }
 }
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_cloud_transcription_settings(
+    app: AppHandle,
+    cloud: settings::CloudTranscriptionSettings,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    let was_enabled = settings.cloud_transcription.enabled;
+    settings.cloud_transcription = cloud;
+    let enabled = settings.cloud_transcription.enabled;
+    settings::write_settings(&app, settings);
+    // Switching to the cloud frees the local model's memory right away.
+    if enabled && !was_enabled {
+        if let Some(tm) =
+            app.try_state::<std::sync::Arc<crate::managers::transcription::TranscriptionManager>>()
+        {
+            tm.request_unload();
+        }
+    }
+    Ok(())
+}
+
+/// Sends one second of silence to the configured cloud API, to check the URL,
+/// key and model. Returns what the model answered (usually nothing).
+#[tauri::command]
+#[specta::specta]
+pub async fn test_cloud_transcription(app: AppHandle) -> Result<String, String> {
+    let settings = settings::get_settings(&app);
+    let silence = vec![0.0f32; crate::audio_toolkit::constants::WHISPER_SAMPLE_RATE as usize];
+    crate::cloud_transcription::transcribe(&settings, &silence, false)
+        .await
+        .map(|r| r.text)
+}

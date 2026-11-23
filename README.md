@@ -6,6 +6,14 @@
 
 Handy is a cross-platform desktop application that provides simple, privacy-focused speech transcription. Press a shortcut, speak, and have your words appear in any text field. This happens on your own computer without sending any information to the cloud.
 
+> **About this fork:** adds optional **cloud transcription through any OpenAI-compatible API** (Settings → Cloud).
+> In _Chat with audio input_ mode the recording is sent to `/chat/completions` as an `input_audio` part, so an
+> audio-capable model (e.g. `gpt-4o-mini-audio-preview`, `gemini-2.5-flash` via Google's OpenAI-compatible endpoint,
+> or OpenRouter) does speech-to-text **and** post-processing in a single request. _Audio transcriptions_ mode uses the
+> Whisper-style `/audio/transcriptions` endpoint (`whisper-1`, `gpt-4o-transcribe`, Groq, …) followed by the regular
+> post-processing step. With cloud transcription on, no local model is needed; audio leaves your computer only then.
+> Windows builds come from the `Fork Windows Build` workflow and are unsigned.
+
 ## Why Handy?
 
 Handy was created to fill the gap for a truly open source, extensible speech-to-text tool. As stated on [handy.computer](https://handy.computer):

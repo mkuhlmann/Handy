@@ -19,7 +19,8 @@
     "postProcessing": "Pascaproses",
     "history": "Riwayat",
     "debug": "Debug",
-    "about": "Tentang"
+    "about": "Tentang",
+    "cloud": "Cloud"
   },
   "onboarding": {
     "customModelDescription": "Tidak didukung secara resmi",
@@ -148,7 +149,8 @@
       "downloadInstead": "Unduh {{size}} saja",
       "pauses": "{{name}} berhenti sejenak di {{percent}}%",
       "resumeLater": "Pilih lagi untuk melanjutkan dari titik terhenti",
-      "hint": "Diunduh selagi Anda menyelesaikan penyiapan"
+      "hint": "Diunduh selagi Anda menyelesaikan penyiapan",
+      "useCloud": "Use a cloud API instead (OpenAI-compatible)"
     },
     "demo": {
       "title": "Bicara di aplikasi apa pun, dengan satu pintasan",
@@ -897,6 +899,63 @@
           "description": "Pustaka tensor berkinerja tinggi untuk inferensi pembelajaran mesin di perangkat",
           "details": "Fitur ucapan-ke-teks lokal Handy dibangun menggunakan transcribe.cpp dan ggml. Terima kasih kepada Georgi Gerganov dan para kontributor atas karya luar biasa mereka."
         }
+      }
+    },
+    "cloud": {
+      "title": "Cloud Transcription (OpenAI-compatible)",
+      "enabled": {
+        "label": "Transcribe with a cloud API",
+        "description": "Send recordings to an OpenAI-compatible API instead of transcribing them with a local model. No model download is needed while this is on."
+      },
+      "preset": {
+        "title": "Preset",
+        "description": "Fill in the endpoint and model for a known provider. You can still edit every field.",
+        "placeholder": "Custom"
+      },
+      "apiMode": {
+        "title": "API",
+        "description": "Chat (audio input) sends the recording to /chat/completions, so an audio-capable model transcribes and post-processes in a single request. Transcriptions uses the Whisper-style /audio/transcriptions endpoint.",
+        "chatAudio": "Chat with audio input (STT + post-processing in one go)",
+        "transcriptions": "Audio transcriptions (Whisper-style)"
+      },
+      "baseUrl": {
+        "title": "Base URL",
+        "description": "The API root including the version, e.g. https://api.openai.com/v1. /chat/completions or /audio/transcriptions is appended."
+      },
+      "apiKey": {
+        "title": "API Key",
+        "description": "Sent as a Bearer token. Leave empty for servers without authentication.",
+        "placeholder": "sk-..."
+      },
+      "model": {
+        "title": "Model",
+        "description": "Chat mode needs a model that accepts audio input (e.g. gpt-4o-mini-audio-preview, gemini-2.5-flash). Transcriptions mode needs a speech-to-text model (e.g. whisper-1, gpt-4o-transcribe)."
+      },
+      "test": {
+        "title": "Test Connection",
+        "description": "Sends one second of silence with the settings above.",
+        "button": "Test",
+        "running": "Testing…",
+        "ok": "The API answered. Cloud transcription is ready.",
+        "okWithText": "The API answered: \"{{text}}\""
+      },
+      "prompt": {
+        "groupTitle": "Instructions",
+        "titleChat": "Transcription prompt",
+        "titleTranscriptions": "Transcription hint",
+        "descriptionChat": "System prompt sent with every recording. Your custom words and language are added automatically. Put clean-up rules here to have them applied on every dictation.",
+        "descriptionTranscriptions": "Optional text sent as the Whisper prompt to guide spelling and style. Your custom words are added automatically.",
+        "reset": "Reset to default"
+      },
+      "alwaysPostProcess": {
+        "label": "Apply the post-processing prompt to every dictation",
+        "description": "Also fold the selected post-processing prompt into the request when you use the normal transcribe shortcut, not only the post-processing shortcut."
+      },
+      "postProcessInfo": {
+        "chatWithPrompt": "With the post-processing shortcut, the prompt \"{{prompt}}\" is applied in the same request as the transcription.",
+        "chatNoPrompt": "Select a prompt under Post Process to have it applied in the same request as the transcription.",
+        "transcriptions": "With the post-processing shortcut, the transcript is post-processed afterwards with the provider set under Post Process.",
+        "enableHint": "Turn on post-processing (Advanced) to get the post-processing shortcut and prompts."
       }
     }
   },

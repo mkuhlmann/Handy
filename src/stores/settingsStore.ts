@@ -10,6 +10,7 @@ import type {
   ShortcutActivation,
   VadBackend,
   LanguageDetectionMode,
+  CloudTranscriptionSettings,
 } from "@/bindings";
 import { commands } from "@/bindings";
 import { notify } from "@/stores/noticeStore";
@@ -217,6 +218,15 @@ const settingUpdaters: {
     commands.changeLanguageDetectionSetting(value as LanguageDetectionMode),
   language_detection_window_secs: (value) =>
     commands.changeLanguageDetectionWindowSetting(value as number),
+  cloud_transcription: async (value) => {
+    const result = await commands.changeCloudTranscriptionSettings(
+      value as CloudTranscriptionSettings,
+    );
+    if (result.status === "error") {
+      notify({ title: result.error });
+      throw new Error(result.error);
+    }
+  },
 };
 
 export const useSettingsStore = create<SettingsStore>()(

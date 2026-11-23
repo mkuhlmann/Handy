@@ -72,6 +72,8 @@ interface ModelProps {
   onBack?: () => void;
   /** The picked model (catalog id), once Download or Continue is pressed. */
   onChoose: (modelId: string) => void;
+  /** Skip the download and transcribe with a cloud API instead. */
+  onUseCloud?: () => void;
 }
 
 /** Screen 3: pick one of three suggested models, or Show all for the table. */
@@ -80,6 +82,7 @@ export const Model: React.FC<ModelProps> = ({
   models,
   onBack,
   onChoose,
+  onUseCloud,
 }) => {
   const { t, i18n } = useTranslation();
   const words = useDownloadWords();
@@ -557,6 +560,16 @@ export const Model: React.FC<ModelProps> = ({
             {t("onboarding.model.showAll", { count: models.offered.length })}
             <Chevron />
           </button>
+          {onUseCloud && (
+            <button
+              type="button"
+              onClick={onUseCloud}
+              className="mt-[8px] flex h-[38px] flex-none cursor-pointer items-center gap-[8px] self-stretch rounded-card border-[1.5px] border-dashed border-line-strong px-[20px] text-start text-small font-semibold text-ink-2 hover:border-solid hover:bg-wash hover:text-text"
+            >
+              {t("onboarding.model.useCloud")}
+              <Chevron />
+            </button>
+          )}
         </ScreenMain>
       </OnboardingShell>
     );

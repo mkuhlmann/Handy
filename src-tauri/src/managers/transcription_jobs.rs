@@ -309,6 +309,11 @@ impl TranscriptionJobManager {
             return Err(anyhow!("Recording has no audio samples"));
         }
 
+        let settings = crate::settings::get_settings(&self.app);
+        if crate::cloud_transcription::is_enabled(&settings) {
+            return self.run_cloud_job(&hm, &entry, &settings, &samples, cancelled);
+        }
+
         let control = Control {
             manager: self,
             entry_id: entry.id,
@@ -342,6 +347,51 @@ impl TranscriptionJobManager {
             processed.post_processed_text,
             processed.post_process_prompt,
             language,
+        )?;
+        Ok(JobEnd::Finished {
+            post_process_failed,
+        })
+    }
+}
+
+impl TranscriptionJobManager {
+    /// `run_job` for a cloud API: one request for the whole recording.
+    fn run_cloud_job(
+        &self,
+        hm: &HistoryManager,
+        entry: &HistoryEntry,
+        settings: &crate::settings::AppSettings,
+        samples: &[f32],
+        cancelled: &AtomicBool,
+    ) -> Result<JobEnd> {
+        let post_process = entry.post_process_requested;
+        let result = tauri::async_runtime::block_on(crate::cloud_transcription::transcribe(
+            settings,
+            samples,
+            post_process,
+        ))
+        .map_err(|e| anyhow!(e))?;
+        if cancelled.load(Ordering::Acquire) {
+            return Ok(JobEnd::Cancelled);
+        }
+        if result.text.trim().is_empty() {
+            return Err(anyhow!("Recording contains no speech"));
+        }
+        let processed = tauri::async_runtime::block_on(crate::actions::process_cloud_output(
+            &self.app,
+            &result,
+            post_process,
+        ));
+        if cancelled.load(Ordering::Acquire) {
+            return Ok(JobEnd::Cancelled);
+        }
+        let post_process_failed = processed.post_process_failed;
+        hm.update_transcription(
+            entry.id,
+            result.text,
+            processed.post_processed_text,
+            processed.post_process_prompt,
+            None,
         )?;
         Ok(JobEnd::Finished {
             post_process_failed,

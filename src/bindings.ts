@@ -336,6 +336,26 @@ async setPostProcessSelectedPrompt(id: string) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async changeCloudTranscriptionSettings(cloud: CloudTranscriptionSettings) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_cloud_transcription_settings", { cloud }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Sends one second of silence to the configured cloud API, to check the URL,
+ * key and model. Returns what the model answered (usually nothing).
+ */
+async testCloudTranscription() : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("test_cloud_transcription") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async updateCustomWords(words: string[]) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_custom_words", { words }) };
@@ -1185,7 +1205,43 @@ language_detection_window_secs?: number;
  * not gated on this — that follows model capability. Migrated from the old
  * `overlay_position` (position `none` → style `None`).
  */
-overlay_style?: OverlayStyle }
+overlay_style?: OverlayStyle; 
+/**
+ * Transcribe through an OpenAI-compatible API instead of a local model.
+ */
+cloud_transcription?: CloudTranscriptionSettings }
+/**
+ * Which OpenAI-compatible endpoint cloud transcription calls.
+ */
+export type CloudApiMode = 
+/**
+ * `/chat/completions` with the recording as an `input_audio` part. An
+ * audio-capable chat model transcribes and post-processes in one request.
+ */
+"chat_audio" | 
+/**
+ * `/audio/transcriptions` (Whisper-style). Post-processing, when asked
+ * for, runs afterwards through the post-processing provider.
+ */
+"transcriptions"
+/**
+ * Transcribe with a remote OpenAI-compatible API instead of a local model.
+ */
+export type CloudTranscriptionSettings = { enabled?: boolean; api_mode?: CloudApiMode; 
+/**
+ * Up to and including the version segment, e.g. `https://api.openai.com/v1`.
+ */
+base_url?: string; api_key?: string; model?: string; 
+/**
+ * System prompt of the chat request (chat mode), or the `prompt` field of
+ * the transcription request (transcriptions mode).
+ */
+prompt?: string; 
+/**
+ * Chat mode: apply the selected post-processing prompt in the same request
+ * for every dictation, not only with the post-processing shortcut.
+ */
+always_post_process?: boolean }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type AutoSubmitKey = "enter" | "ctrl_enter" | "cmd_enter"
 export type AutoUnavailableReason = 

@@ -513,6 +513,31 @@ pub(crate) async fn process_transcription_output(
     }
 }
 
+/// The output of a cloud transcription: when the model already applied the
+/// post-processing prompt in the same request, that is the final text;
+/// otherwise the transcript goes through the regular post-processing step.
+pub(crate) async fn process_cloud_output(
+    app: &AppHandle,
+    result: &crate::cloud_transcription::CloudTranscription,
+    post_process: bool,
+) -> ProcessedTranscription {
+    match &result.applied_post_process_prompt {
+        Some(prompt) if !is_blank_transcription(&result.text) => ProcessedTranscription {
+            final_text: result.text.clone(),
+            post_processed_text: Some(result.text.clone()),
+            post_process_prompt: Some(prompt.clone()),
+            post_process_failed: false,
+        },
+        Some(_) => ProcessedTranscription {
+            final_text: result.text.clone(),
+            post_processed_text: None,
+            post_process_prompt: None,
+            post_process_failed: false,
+        },
+        None => process_transcription_output(app, &result.text, post_process).await,
+    }
+}
+
 impl ShortcutAction for TranscribeAction {
     fn start(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
         let start_time = Instant::now();
@@ -521,12 +546,15 @@ impl ShortcutAction for TranscribeAction {
         // Load model in the background
         let tm = app.state::<Arc<TranscriptionManager>>();
         let rm = app.state::<Arc<AudioRecordingManager>>();
+        // A cloud API transcribes instead of the local model, so nothing
+        // needs to load and no model has to be selected.
+        let cloud = crate::cloud_transcription::is_enabled(&get_settings(app));
 
         // Load ASR model and VAD model in parallel
         let kickoff_started = Instant::now();
         // An empty selection has nothing to load; the check below says so.
         let selected_model = get_settings(app).selected_model;
-        let load_started = !selected_model.is_empty() && tm.initiate_model_load(true);
+        let load_started = !cloud && !selected_model.is_empty() && tm.initiate_model_load(true);
         let rm_clone = Arc::clone(&rm);
         std::thread::spawn(move || {
             if let Err(e) = rm_clone.preload_vad() {
@@ -537,7 +565,7 @@ impl ShortcutAction for TranscribeAction {
 
         // Don't open the mic if nothing can transcribe the recording. A load
         // started above reports its own failure; one already running doesn't.
-        if !tm.is_model_loaded() {
+        if !cloud && !tm.is_model_loaded() {
             if selected_model.is_empty() {
                 warn!("Not starting recording: no model is selected");
                 tm.raise_no_model_selected();
@@ -573,10 +601,11 @@ impl ShortcutAction for TranscribeAction {
         // Use the app-facing model capability as the single pre-recording source
         // for live streaming decisions. Unknown support is represented as false
         // until the model registry is updated by discovery or runtime load.
-        let model_supports_streaming = selected_model_info
-            .as_ref()
-            .map(|m| m.supports_streaming)
-            .unwrap_or(false);
+        let model_supports_streaming = !cloud
+            && selected_model_info
+                .as_ref()
+                .map(|m| m.supports_streaming)
+                .unwrap_or(false);
         let vad_policy = if !settings.vad_enabled {
             VadPolicy::Disabled
         } else if model_supports_streaming {
@@ -591,7 +620,7 @@ impl ShortcutAction for TranscribeAction {
             streaming: model_supports_streaming,
             long_form: false,
         };
-        if live_decode(expected_model, settings.long_form_chunking) != LiveDecode::None {
+        if !cloud && live_decode(expected_model, settings.long_form_chunking) != LiveDecode::None {
             tm.start_stream();
         }
         let plan_elapsed = plan_started.elapsed();
@@ -787,7 +816,36 @@ impl ShortcutAction for TranscribeAction {
                     // otherwise a batch run of the samples. A cancel is surfaced
                     // as an error, so it never starts a batch run.
                     let transcription_time = Instant::now();
-                    let transcription_result = tm.transcribe_recording(samples);
+                    let settings_now = get_settings(&ah);
+                    // Set when the cloud model already did the post-processing.
+                    let mut cloud_result = None;
+                    let transcription_result =
+                        if crate::cloud_transcription::is_enabled(&settings_now) {
+                            match complete_unless_cancelled(
+                                crate::cloud_transcription::transcribe(
+                                    &settings_now,
+                                    &samples,
+                                    post_process,
+                                ),
+                                || rm.was_cancelled_since(cancel_generation),
+                            )
+                            .await
+                            {
+                                // Cancelled: the check after the WAV save ends the session.
+                                None => Err(anyhow::anyhow!("Transcription cancelled")),
+                                Some(Ok(result)) => {
+                                    let text = result.text.clone();
+                                    cloud_result = Some(result);
+                                    Ok(Transcription {
+                                        text,
+                                        language: None,
+                                    })
+                                }
+                                Some(Err(e)) => Err(anyhow::anyhow!(e)),
+                            }
+                        } else {
+                            tm.transcribe_recording(samples)
+                        };
 
                     // Await WAV save and verify
                     let wav_saved = match wav_handle.await {
@@ -831,17 +889,34 @@ impl ShortcutAction for TranscribeAction {
                                 utils::redact_text(&transcription)
                             );
 
-                            if post_process {
+                            let cloud_post_processed = cloud_result
+                                .as_ref()
+                                .is_some_and(|r| r.applied_post_process_prompt.is_some());
+                            if post_process && !cloud_post_processed {
                                 if use_streaming_overlay {
                                     tm.emit_stream_working(StreamWorkKind::Polishing);
                                 } else {
                                     show_processing_overlay(&ah);
                                 }
                             }
-                            let Some(processed) = complete_unless_cancelled(
-                                process_transcription_output(&ah, &transcription, post_process),
-                                || rm.was_cancelled_since(cancel_generation),
-                            )
+                            let processing = async {
+                                match &cloud_result {
+                                    Some(result) => {
+                                        process_cloud_output(&ah, result, post_process).await
+                                    }
+                                    None => {
+                                        process_transcription_output(
+                                            &ah,
+                                            &transcription,
+                                            post_process,
+                                        )
+                                        .await
+                                    }
+                                }
+                            };
+                            let Some(processed) = complete_unless_cancelled(processing, || {
+                                rm.was_cancelled_since(cancel_generation)
+                            })
                             .await
                             else {
                                 debug!("Transcription operation cancelled during output handling");

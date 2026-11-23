@@ -30,7 +30,8 @@ interface OnboardingFlowProps {
   /** The screen a preview opens on. */
   previewStep?: OnboardingStep;
   /** Called after the last screen, to show Settings. */
-  onComplete: () => void;
+  /** `openCloud`: the user picked a cloud API, so open its settings. */
+  onComplete: (opts?: { openCloud?: boolean }) => void;
 }
 
 // The backend's chinese_script values for the script picked on Welcome.
@@ -148,13 +149,13 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
     if (i > 0) go(steps[i - 1]);
   };
 
-  const finish = async () => {
+  const finish = async (opts?: { openCloud?: boolean }) => {
     // Saved only now: each login item change posts a macOS notification.
     if (!preview) {
       await updateSetting("autostart_enabled", store.atLogin);
       await commands.completeOnboarding();
     }
-    onComplete();
+    onComplete(opts);
     // After Settings replaces the flow, so Welcome doesn't flash.
     if (!preview) clearOnboardingProgress();
   };
@@ -212,6 +213,14 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
           models={models}
           onBack={store.returnTo ? () => go(store.returnTo!) : back}
           onChoose={chooseModel}
+          onUseCloud={async () => {
+            if (!preview)
+              await updateSetting("cloud_transcription", {
+                ...(settings?.cloud_transcription ?? {}),
+                enabled: true,
+              });
+            await finish({ openCloud: true });
+          }}
         />
       );
     case "demo":

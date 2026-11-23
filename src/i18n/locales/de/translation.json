@@ -19,7 +19,8 @@
     "postProcessing": "Nachbearbeitung",
     "history": "Verlauf",
     "debug": "Debug",
-    "about": "Info"
+    "about": "Info",
+    "cloud": "Cloud"
   },
   "onboarding": {
     "customModelDescription": "Nicht offiziell unterstützt",
@@ -148,7 +149,8 @@
       "downloadInstead": "Stattdessen {{size}} herunterladen",
       "pauses": "{{name}} pausiert bei {{percent}} %",
       "resumeLater": "Wähle es erneut, um dort weiterzumachen, wo es aufgehört hat",
-      "hint": "Wird heruntergeladen, während du die Einrichtung abschließt"
+      "hint": "Wird heruntergeladen, während du die Einrichtung abschließt",
+      "useCloud": "Stattdessen eine Cloud-API verwenden (OpenAI-kompatibel)"
     },
     "demo": {
       "title": "Sprich in jeder App, mit einem Tastenkürzel",
@@ -897,6 +899,63 @@
           "description": "Hochleistungs-Inferenz des Whisper-Spracherkennungsmodells von OpenAI",
           "details": "Handy verwendet ggml für schnelle, lokale Sprach-zu-Text-Verarbeitung. Dank an Georgi Gerganov und die Mitwirkenden für ihre großartige Arbeit."
         }
+      }
+    },
+    "cloud": {
+      "title": "Cloud-Transkription (OpenAI-kompatibel)",
+      "enabled": {
+        "label": "Mit einer Cloud-API transkribieren",
+        "description": "Aufnahmen an eine OpenAI-kompatible API senden, statt sie mit einem lokalen Modell zu transkribieren. Solange das an ist, wird kein Modell-Download benötigt."
+      },
+      "preset": {
+        "title": "Vorlage",
+        "description": "Endpunkt und Modell eines bekannten Anbieters eintragen. Alle Felder bleiben bearbeitbar.",
+        "placeholder": "Benutzerdefiniert"
+      },
+      "apiMode": {
+        "title": "API",
+        "description": "Chat (Audio-Eingabe) sendet die Aufnahme an /chat/completions, sodass ein audiofähiges Modell in einer einzigen Anfrage transkribiert und nachbearbeitet. Transkriptionen nutzt den Whisper-artigen Endpunkt /audio/transcriptions.",
+        "chatAudio": "Chat mit Audio-Eingabe (STT + Nachbearbeitung in einem Schritt)",
+        "transcriptions": "Audio-Transkriptionen (Whisper-artig)"
+      },
+      "baseUrl": {
+        "title": "Basis-URL",
+        "description": "API-Wurzel inklusive Version, z. B. https://api.openai.com/v1. /chat/completions bzw. /audio/transcriptions wird angehängt."
+      },
+      "apiKey": {
+        "title": "API-Schlüssel",
+        "description": "Wird als Bearer-Token gesendet. Leer lassen für Server ohne Authentifizierung.",
+        "placeholder": "sk-..."
+      },
+      "model": {
+        "title": "Modell",
+        "description": "Der Chat-Modus braucht ein Modell mit Audio-Eingabe (z. B. gpt-4o-mini-audio-preview, gemini-2.5-flash). Der Transkriptions-Modus braucht ein Speech-to-Text-Modell (z. B. whisper-1, gpt-4o-transcribe)."
+      },
+      "test": {
+        "title": "Verbindung testen",
+        "description": "Sendet eine Sekunde Stille mit den obigen Einstellungen.",
+        "button": "Testen",
+        "running": "Teste…",
+        "ok": "Die API hat geantwortet. Cloud-Transkription ist bereit.",
+        "okWithText": "Die API hat geantwortet: „{{text}}“"
+      },
+      "prompt": {
+        "groupTitle": "Anweisungen",
+        "titleChat": "Transkriptions-Prompt",
+        "titleTranscriptions": "Transkriptions-Hinweis",
+        "descriptionChat": "System-Prompt, der mit jeder Aufnahme gesendet wird. Eigene Wörter und Sprache werden automatisch ergänzt. Bereinigungsregeln hier eintragen, damit sie bei jedem Diktat gelten.",
+        "descriptionTranscriptions": "Optionaler Text, der als Whisper-Prompt gesendet wird, um Schreibweise und Stil zu steuern. Eigene Wörter werden automatisch ergänzt.",
+        "reset": "Auf Standard zurücksetzen"
+      },
+      "alwaysPostProcess": {
+        "label": "Nachbearbeitungs-Prompt bei jedem Diktat anwenden",
+        "description": "Den gewählten Nachbearbeitungs-Prompt auch beim normalen Transkriptions-Kürzel in die Anfrage aufnehmen, nicht nur beim Nachbearbeitungs-Kürzel."
+      },
+      "postProcessInfo": {
+        "chatWithPrompt": "Mit dem Nachbearbeitungs-Kürzel wird der Prompt „{{prompt}}“ in derselben Anfrage wie die Transkription angewendet.",
+        "chatNoPrompt": "Wähle unter Nachbearbeitung einen Prompt, damit er in derselben Anfrage wie die Transkription angewendet wird.",
+        "transcriptions": "Mit dem Nachbearbeitungs-Kürzel wird das Transkript anschließend mit dem unter Nachbearbeitung eingestellten Anbieter bearbeitet.",
+        "enableHint": "Schalte die Nachbearbeitung ein (Erweitert), um das Nachbearbeitungs-Kürzel und Prompts zu nutzen."
       }
     }
   },

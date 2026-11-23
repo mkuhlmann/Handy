@@ -19,7 +19,8 @@
     "postProcessing": "後處理",
     "history": "歷史紀錄",
     "debug": "偵錯",
-    "about": "關於"
+    "about": "關於",
+    "cloud": "Cloud"
   },
   "onboarding": {
     "customModelDescription": "官方不支援",
@@ -148,7 +149,8 @@
       "downloadInstead": "改為下載 {{size}}",
       "pauses": "{{name}} 會在 {{percent}}% 暫停",
       "resumeLater": "再次選擇它即可從中斷處繼續",
-      "hint": "會在您完成設定的同時下載"
+      "hint": "會在您完成設定的同時下載",
+      "useCloud": "Use a cloud API instead (OpenAI-compatible)"
     },
     "demo": {
       "title": "一個快捷鍵，在任何應用程式中開口說話",
@@ -897,6 +899,63 @@
           "description": "針對 OpenAI Whisper 自動語音辨識模型的高效能推理引擎",
           "details": "Handy 使用 ggml 進行快速的本機語音轉文字處理。感謝 Georgi Gerganov 和貢獻者們的傑出工作"
         }
+      }
+    },
+    "cloud": {
+      "title": "Cloud Transcription (OpenAI-compatible)",
+      "enabled": {
+        "label": "Transcribe with a cloud API",
+        "description": "Send recordings to an OpenAI-compatible API instead of transcribing them with a local model. No model download is needed while this is on."
+      },
+      "preset": {
+        "title": "Preset",
+        "description": "Fill in the endpoint and model for a known provider. You can still edit every field.",
+        "placeholder": "Custom"
+      },
+      "apiMode": {
+        "title": "API",
+        "description": "Chat (audio input) sends the recording to /chat/completions, so an audio-capable model transcribes and post-processes in a single request. Transcriptions uses the Whisper-style /audio/transcriptions endpoint.",
+        "chatAudio": "Chat with audio input (STT + post-processing in one go)",
+        "transcriptions": "Audio transcriptions (Whisper-style)"
+      },
+      "baseUrl": {
+        "title": "Base URL",
+        "description": "The API root including the version, e.g. https://api.openai.com/v1. /chat/completions or /audio/transcriptions is appended."
+      },
+      "apiKey": {
+        "title": "API Key",
+        "description": "Sent as a Bearer token. Leave empty for servers without authentication.",
+        "placeholder": "sk-..."
+      },
+      "model": {
+        "title": "Model",
+        "description": "Chat mode needs a model that accepts audio input (e.g. gpt-4o-mini-audio-preview, gemini-2.5-flash). Transcriptions mode needs a speech-to-text model (e.g. whisper-1, gpt-4o-transcribe)."
+      },
+      "test": {
+        "title": "Test Connection",
+        "description": "Sends one second of silence with the settings above.",
+        "button": "Test",
+        "running": "Testing…",
+        "ok": "The API answered. Cloud transcription is ready.",
+        "okWithText": "The API answered: \"{{text}}\""
+      },
+      "prompt": {
+        "groupTitle": "Instructions",
+        "titleChat": "Transcription prompt",
+        "titleTranscriptions": "Transcription hint",
+        "descriptionChat": "System prompt sent with every recording. Your custom words and language are added automatically. Put clean-up rules here to have them applied on every dictation.",
+        "descriptionTranscriptions": "Optional text sent as the Whisper prompt to guide spelling and style. Your custom words are added automatically.",
+        "reset": "Reset to default"
+      },
+      "alwaysPostProcess": {
+        "label": "Apply the post-processing prompt to every dictation",
+        "description": "Also fold the selected post-processing prompt into the request when you use the normal transcribe shortcut, not only the post-processing shortcut."
+      },
+      "postProcessInfo": {
+        "chatWithPrompt": "With the post-processing shortcut, the prompt \"{{prompt}}\" is applied in the same request as the transcription.",
+        "chatNoPrompt": "Select a prompt under Post Process to have it applied in the same request as the transcription.",
+        "transcriptions": "With the post-processing shortcut, the transcript is post-processed afterwards with the provider set under Post Process.",
+        "enableHint": "Turn on post-processing (Advanced) to get the post-processing shortcut and prompts."
       }
     }
   },
