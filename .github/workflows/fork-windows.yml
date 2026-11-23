@@ -1,8 +1,8 @@
-name: "Fork Windows Build"
+name: "Fork Build"
 
-# Unsigned Windows x64 build for this fork. tauri.conf.json in the fork has no
-# sign command and no updater artifacts, since upstream's signing keys are not
-# available here.
+# Unsigned Windows x64 installer and Linux x64 AppImage for this fork.
+# tauri.conf.json in the fork has no sign command and no updater artifacts,
+# since upstream's signing keys are not available here.
 on:
   workflow_dispatch:
 
@@ -15,6 +15,19 @@ jobs:
       platform: "windows-latest"
       target: "x86_64-pc-windows-msvc"
       build-args: ""
+      sign-binaries: false
+      asset-prefix: "handy-fork"
+      upload-artifacts: true
+    secrets: inherit
+
+  linux:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build.yml
+    with:
+      platform: "ubuntu-24.04"
+      target: "x86_64-unknown-linux-gnu"
+      build-args: "--bundles appimage"
       sign-binaries: false
       asset-prefix: "handy-fork"
       upload-artifacts: true
