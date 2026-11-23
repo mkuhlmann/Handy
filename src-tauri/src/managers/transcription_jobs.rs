@@ -311,7 +311,10 @@ impl TranscriptionJobManager {
 
         let settings = crate::settings::get_settings(&self.app);
         if crate::cloud_transcription::is_enabled(&settings) {
-            return self.run_cloud_job(&hm, &entry, &settings, &samples, cancelled);
+            // `None`: the API was unreachable, so the local model runs below.
+            if let Some(end) = self.run_cloud_job(&hm, &entry, &settings, &samples, cancelled)? {
+                return Ok(end);
+            }
         }
 
         let control = Control {
@@ -356,6 +359,8 @@ impl TranscriptionJobManager {
 
 impl TranscriptionJobManager {
     /// `run_job` for a cloud API: one request for the whole recording.
+    /// `Ok(None)` when the API couldn't be reached and the local model may
+    /// transcribe instead.
     fn run_cloud_job(
         &self,
         hm: &HistoryManager,
@@ -363,16 +368,22 @@ impl TranscriptionJobManager {
         settings: &crate::settings::AppSettings,
         samples: &[f32],
         cancelled: &AtomicBool,
-    ) -> Result<JobEnd> {
+    ) -> Result<Option<JobEnd>> {
         let post_process = entry.post_process_requested;
-        let result = tauri::async_runtime::block_on(crate::cloud_transcription::transcribe(
+        let result = match tauri::async_runtime::block_on(crate::cloud_transcription::transcribe(
             settings,
             samples,
             post_process,
-        ))
-        .map_err(|e| anyhow!(e))?;
+        )) {
+            Ok(result) => result,
+            Err(e) if e.unreachable && crate::cloud_transcription::can_fall_back(settings) => {
+                warn!("{e}; transcribing history entry {} locally", entry.id);
+                return Ok(None);
+            }
+            Err(e) => return Err(anyhow!(e)),
+        };
         if cancelled.load(Ordering::Acquire) {
-            return Ok(JobEnd::Cancelled);
+            return Ok(Some(JobEnd::Cancelled));
         }
         if result.text.trim().is_empty() {
             return Err(anyhow!("Recording contains no speech"));
@@ -383,7 +394,7 @@ impl TranscriptionJobManager {
             post_process,
         ));
         if cancelled.load(Ordering::Acquire) {
-            return Ok(JobEnd::Cancelled);
+            return Ok(Some(JobEnd::Cancelled));
         }
         let post_process_failed = processed.post_process_failed;
         hm.update_transcription(
@@ -393,9 +404,9 @@ impl TranscriptionJobManager {
             processed.post_process_prompt,
             None,
         )?;
-        Ok(JobEnd::Finished {
+        Ok(Some(JobEnd::Finished {
             post_process_failed,
-        })
+        }))
     }
 }
 

@@ -44,9 +44,76 @@ pub struct CloudTranscription {
     pub applied_post_process_prompt: Option<String>,
 }
 
+/// Why a cloud transcription failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CloudError {
+    pub message: String,
+    /// The API couldn't be reached (no network, DNS failure, timeout, or a
+    /// gateway error), as opposed to rejecting the request. Only these fall
+    /// back to the local model.
+    pub unreachable: bool,
+}
+
+impl CloudError {
+    fn unreachable(message: String) -> Self {
+        Self {
+            message,
+            unreachable: true,
+        }
+    }
+}
+
+impl From<String> for CloudError {
+    fn from(message: String) -> Self {
+        Self {
+            message,
+            unreachable: false,
+        }
+    }
+}
+
+impl std::fmt::Display for CloudError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for CloudError {}
+
 /// Whether cloud transcription replaces the local model.
 pub fn is_enabled(settings: &AppSettings) -> bool {
     settings.cloud_transcription.enabled
+}
+
+/// Whether a failed cloud request may be retried with the local model: the
+/// user allows it and a local model is selected.
+pub fn can_fall_back(settings: &AppSettings) -> bool {
+    settings.cloud_transcription.fallback_to_local && !settings.selected_model.is_empty()
+}
+
+/// A quick guess whether the API is reachable right now: any HTTP answer from
+/// its base URL within a few seconds counts. Used at recording start to load
+/// the local model early when the fallback will likely be needed.
+pub async fn is_reachable(settings: &AppSettings) -> bool {
+    let cloud = &settings.cloud_transcription;
+    let Ok(client) = client() else {
+        return false;
+    };
+    let url = endpoint(cloud, "models");
+    match with_auth(client.get(url), cloud)
+        .timeout(Duration::from_secs(4))
+        .send()
+        .await
+    {
+        Ok(_) => true,
+        Err(e) => {
+            debug!(
+                "Cloud API looks unreachable: {}",
+                describe_reqwest_error(e).message
+            );
+            false
+        }
+    }
 }
 
 /// Transcribes 16 kHz mono `samples` with the configured cloud API.
@@ -56,13 +123,13 @@ pub async fn transcribe(
     settings: &AppSettings,
     samples: &[f32],
     post_process: bool,
-) -> Result<CloudTranscription, String> {
+) -> Result<CloudTranscription, CloudError> {
     let cloud = &settings.cloud_transcription;
     if cloud.base_url.trim().is_empty() {
-        return Err("Cloud transcription has no API base URL".to_string());
+        return Err("Cloud transcription has no API base URL".to_string().into());
     }
     if cloud.model.trim().is_empty() {
-        return Err("Cloud transcription has no model".to_string());
+        return Err("Cloud transcription has no model".to_string().into());
     }
     if samples.is_empty() {
         return Ok(CloudTranscription {
@@ -226,21 +293,30 @@ fn with_auth(
 }
 
 /// Describes a transport failure without echoing the request URL's query.
-fn describe_reqwest_error(e: reqwest::Error) -> String {
-    if e.is_timeout() {
-        format!(
-            "The cloud API did not answer within {}s",
-            REQUEST_TIMEOUT.as_secs()
-        )
+/// Every transport failure means the API wasn't reached (or stopped
+/// answering), so all of them count as unreachable.
+fn describe_reqwest_error(e: reqwest::Error) -> CloudError {
+    CloudError::unreachable(if e.is_timeout() {
+        "The cloud API did not answer in time".to_string()
     } else if e.is_connect() {
         "Could not connect to the cloud API (check the base URL and your network)".to_string()
     } else {
         format!("Cloud API request failed: {}", e.without_url())
+    })
+}
+
+/// Turns a non-success HTTP answer into a short, readable error. Gateway
+/// errors (502/503/504) mean the service is down, so they count as unreachable.
+fn http_error(status: reqwest::StatusCode, body: &str) -> CloudError {
+    let message = http_error_message(status, body);
+    let gateway = matches!(status.as_u16(), 502..=504);
+    CloudError {
+        message,
+        unreachable: gateway,
     }
 }
 
-/// Turns a non-success HTTP answer into a short, readable error.
-fn http_error(status: reqwest::StatusCode, body: &str) -> String {
+fn http_error_message(status: reqwest::StatusCode, body: &str) -> String {
     let detail = serde_json::from_str::<Value>(body)
         .ok()
         .and_then(|v| {
@@ -267,7 +343,7 @@ async fn chat_audio_request(
     cloud: &CloudTranscriptionSettings,
     system_prompt: &str,
     wav: &[u8],
-) -> Result<String, String> {
+) -> Result<String, CloudError> {
     let audio_b64 = base64::engine::general_purpose::STANDARD.encode(wav);
     let body = json!({
         "model": cloud.model.trim(),
@@ -301,7 +377,11 @@ async fn chat_audio_request(
         .map_err(|_| "Cloud API returned a response that is not JSON".to_string())?;
     parse_chat_content(&json)
         .map(|c| clean_output(&c))
-        .ok_or_else(|| "Cloud API response has no message content".to_string())
+        .ok_or_else(|| {
+            "Cloud API response has no message content"
+                .to_string()
+                .into()
+        })
 }
 
 /// The assistant message text of a chat completion. Content may be a string
@@ -328,7 +408,7 @@ pub(crate) fn parse_chat_content(json: &Value) -> Option<String> {
 }
 
 /// `/audio/transcriptions`, Whisper-style multipart upload.
-async fn transcriptions_request(settings: &AppSettings, wav: &[u8]) -> Result<String, String> {
+async fn transcriptions_request(settings: &AppSettings, wav: &[u8]) -> Result<String, CloudError> {
     let cloud = &settings.cloud_transcription;
     let file = reqwest::multipart::Part::bytes(wav.to_vec())
         .file_name("audio.wav")
@@ -384,7 +464,11 @@ async fn transcriptions_request(settings: &AppSettings, wav: &[u8]) -> Result<St
             .get("text")
             .and_then(Value::as_str)
             .map(clean_output)
-            .ok_or_else(|| "Cloud API response has no \"text\" field".to_string()),
+            .ok_or_else(|| {
+                "Cloud API response has no \"text\" field"
+                    .to_string()
+                    .into()
+            }),
         Err(_) => Ok(clean_output(&text)),
     }
 }
@@ -461,9 +545,11 @@ mod tests {
             r#"{"error":{"message":"Incorrect API key provided"}}"#,
         );
         assert_eq!(
-            e,
+            e.message,
             "Cloud API returned HTTP 401 Unauthorized: Incorrect API key provided"
         );
+        assert!(!e.unreachable);
+        assert!(http_error(reqwest::StatusCode::SERVICE_UNAVAILABLE, "").unreachable);
     }
 
     /// One-shot HTTP server answering every request with `body`.
@@ -522,6 +608,26 @@ mod tests {
             tauri::async_runtime::block_on(transcribe(&settings, &[0.1; 1600], true)).unwrap();
         assert_eq!(result.text, "Hello, world.");
         assert!(result.applied_post_process_prompt.is_some());
+    }
+
+    #[test]
+    fn an_unreachable_api_is_reported_as_such() {
+        // Nothing listens on port 1.
+        let mut settings = get_default_settings();
+        settings.cloud_transcription.enabled = true;
+        settings.cloud_transcription.base_url = "http://127.0.0.1:1/v1".into();
+        let err =
+            tauri::async_runtime::block_on(transcribe(&settings, &[0.1; 1600], false)).unwrap_err();
+        assert!(err.unreachable, "{err}");
+        assert!(!tauri::async_runtime::block_on(is_reachable(&settings)));
+
+        // Falling back needs a local model.
+        settings.selected_model.clear();
+        assert!(!can_fall_back(&settings));
+        settings.selected_model = "parakeet-tdt-0.6b-v3".into();
+        assert!(can_fall_back(&settings));
+        settings.cloud_transcription.fallback_to_local = false;
+        assert!(!can_fall_back(&settings));
     }
 
     #[test]

@@ -93,6 +93,7 @@ export const CloudTranscriptionSettings: React.FC = () => {
   );
   const cloud: CloudSettings = getSetting("cloud_transcription") ?? {};
   const postProcessEnabled = getSetting("post_process_enabled") ?? false;
+  const hasLocalModel = (getSetting("selected_model") ?? "") !== "";
   const prompts = getSetting("post_process_prompts") ?? [];
   const selectedPromptId = getSetting("post_process_selected_prompt_id");
   const selectedPrompt = prompts.find((p) => p.id === selectedPromptId);
@@ -244,6 +245,21 @@ export const CloudTranscriptionSettings: React.FC = () => {
             disabled={updating}
           />
         </SettingContainer>
+
+        <ToggleSwitch
+          checked={cloud.fallback_to_local ?? true}
+          onChange={(value) => save({ fallback_to_local: value })}
+          isUpdating={updating}
+          label={t("settings.cloud.fallbackToLocal.label")}
+          description={t("settings.cloud.fallbackToLocal.description")}
+          descriptionMode="inline"
+          grouped={true}
+        />
+        {(cloud.fallback_to_local ?? true) && !hasLocalModel && (
+          <Alert variant="warning" contained>
+            {t("settings.cloud.fallbackToLocal.noModel")}
+          </Alert>
+        )}
 
         <SettingContainer
           title={t("settings.cloud.test.title")}

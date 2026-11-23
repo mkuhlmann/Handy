@@ -51,6 +51,8 @@ pub enum NoticeCode {
     PostProcessFailed,
     FileTranscriptionFailed,
     FilePostProcessFailed,
+    /// The cloud API couldn't be reached, so the local model transcribed.
+    CloudFallbackLocal,
 }
 
 impl NoticeCode {
@@ -66,7 +68,9 @@ impl NoticeCode {
             | Self::ModelLoadFailed
             | Self::NoModelSelected
             | Self::FileTranscriptionFailed => NoticeLevel::Error,
-            Self::PostProcessFailed | Self::FilePostProcessFailed => NoticeLevel::Warning,
+            Self::PostProcessFailed | Self::FilePostProcessFailed | Self::CloudFallbackLocal => {
+                NoticeLevel::Warning
+            }
         }
     }
 
@@ -85,6 +89,7 @@ impl NoticeCode {
             Self::PostProcessFailed => &strings.post_process_failed_title,
             Self::FileTranscriptionFailed => &strings.file_transcription_failed_title,
             Self::FilePostProcessFailed => &strings.file_post_process_failed_title,
+            Self::CloudFallbackLocal => &strings.cloud_fallback_local_title,
         }
     }
 }

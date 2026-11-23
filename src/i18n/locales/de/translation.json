@@ -956,6 +956,11 @@
         "chatNoPrompt": "Wähle unter Nachbearbeitung einen Prompt, damit er in derselben Anfrage wie die Transkription angewendet wird.",
         "transcriptions": "Mit dem Nachbearbeitungs-Kürzel wird das Transkript anschließend mit dem unter Nachbearbeitung eingestellten Anbieter bearbeitet.",
         "enableHint": "Schalte die Nachbearbeitung ein (Erweitert), um das Nachbearbeitungs-Kürzel und Prompts zu nutzen."
+      },
+      "fallbackToLocal": {
+        "label": "Offline auf das lokale Modell ausweichen",
+        "description": "Ist die API nicht erreichbar (kein Internet, Zeitüberschreitung, Server ausgefallen), wird stattdessen mit dem unter Modelle gewählten Modell transkribiert. Erfordert ein heruntergeladenes lokales Modell.",
+        "noModel": "Es ist kein lokales Modell ausgewählt, auf das ausgewichen werden kann. Lade eines unter Modelle herunter."
       }
     }
   },
@@ -1016,7 +1021,9 @@
     "filePostProcessFailedTitle": "Ohne Nachbearbeitung transkribiert",
     "filePostProcessFailed": "Die Nachbearbeitung wurde nicht abgeschlossen, daher wurde das Transkript unverändert gespeichert.",
     "fileTranscriptionFailedTitle": "Dateitranskription fehlgeschlagen",
-    "transcriptionFailedTitle": "Transkription fehlgeschlagen"
+    "transcriptionFailedTitle": "Transkription fehlgeschlagen",
+    "cloudFallbackLocalTitle": "Lokal transkribiert",
+    "cloudFallbackLocal": "Die Cloud-API war nicht erreichbar, daher hat dein lokales Modell transkribiert."
   },
   "notices": {
     "errorOne": "{{n}} Fehler",

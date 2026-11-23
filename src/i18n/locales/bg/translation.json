@@ -956,6 +956,11 @@
         "chatNoPrompt": "Select a prompt under Post Process to have it applied in the same request as the transcription.",
         "transcriptions": "With the post-processing shortcut, the transcript is post-processed afterwards with the provider set under Post Process.",
         "enableHint": "Turn on post-processing (Advanced) to get the post-processing shortcut and prompts."
+      },
+      "fallbackToLocal": {
+        "label": "Fall back to the local model when offline",
+        "description": "If the API can't be reached (no internet, timeout, server down), transcribe with the model selected under Models instead. Needs a downloaded local model.",
+        "noModel": "No local model is selected, so there is nothing to fall back to. Download one under Models."
       }
     }
   },
@@ -1016,7 +1021,9 @@
     "filePostProcessFailedTitle": "Транскрибирано без постобработка",
     "filePostProcessFailed": "Постобработката не завърши, затова транскрипцията беше запазена без промени.",
     "fileTranscriptionFailedTitle": "Неуспешна транскрипция на файла",
-    "transcriptionFailedTitle": "Неуспешна транскрипция"
+    "transcriptionFailedTitle": "Неуспешна транскрипция",
+    "cloudFallbackLocalTitle": "Transcribed Locally",
+    "cloudFallbackLocal": "The cloud API couldn't be reached, so your local model transcribed this instead."
   },
   "notices": {
     "errorOne": "{{n}} грешка",

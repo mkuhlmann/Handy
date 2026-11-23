@@ -1241,7 +1241,12 @@ prompt?: string;
  * Chat mode: apply the selected post-processing prompt in the same request
  * for every dictation, not only with the post-processing shortcut.
  */
-always_post_process?: boolean }
+always_post_process?: boolean; 
+/**
+ * When the API can't be reached (no internet, timeout, 502/503/504),
+ * transcribe with the selected local model instead.
+ */
+fallback_to_local?: boolean }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type AutoSubmitKey = "enter" | "ctrl_enter" | "cmd_enter"
 export type AutoUnavailableReason = 
@@ -1412,7 +1417,11 @@ detail: string | null }
 /**
  * The frontend maps each code to its text in `src/lib/notices.ts`.
  */
-export type NoticeCode = "TranscriptionFailed" | "PasteFailed" | "PasteBlockedElevated" | "NoMicrophone" | "MicrophoneSilent" | "MicPermissionDenied" | "RecordingFailed" | "ModelLoadFailed" | "NoModelSelected" | "PostProcessFailed" | "FileTranscriptionFailed" | "FilePostProcessFailed"
+export type NoticeCode = "TranscriptionFailed" | "PasteFailed" | "PasteBlockedElevated" | "NoMicrophone" | "MicrophoneSilent" | "MicPermissionDenied" | "RecordingFailed" | "ModelLoadFailed" | "NoModelSelected" | "PostProcessFailed" | "FileTranscriptionFailed" | "FilePostProcessFailed" | 
+/**
+ * The cloud API couldn't be reached, so the local model transcribed.
+ */
+"CloudFallbackLocal"
 export type NoticeLevel = 
 /**
  * Nothing came out, or Handy can't do its job.

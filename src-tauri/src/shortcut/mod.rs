@@ -1604,4 +1604,5 @@ pub async fn test_cloud_transcription(app: AppHandle) -> Result<String, String> 
     crate::cloud_transcription::transcribe(&settings, &silence, false)
         .await
         .map(|r| r.text)
+        .map_err(|e| e.message)
 }

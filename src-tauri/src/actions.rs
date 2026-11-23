@@ -555,6 +555,21 @@ impl ShortcutAction for TranscribeAction {
         // An empty selection has nothing to load; the check below says so.
         let selected_model = get_settings(app).selected_model;
         let load_started = !cloud && !selected_model.is_empty() && tm.initiate_model_load(true);
+        // While recording, check whether the cloud API answers at all. If it
+        // doesn't and the local fallback is allowed, load the local model now
+        // so the fallback doesn't also wait for the load after the recording.
+        if cloud {
+            let settings = get_settings(app);
+            if crate::cloud_transcription::can_fall_back(&settings) {
+                let tm = Arc::clone(&tm);
+                tauri::async_runtime::spawn(async move {
+                    if !crate::cloud_transcription::is_reachable(&settings).await {
+                        debug!("Cloud API unreachable; loading the local model for the fallback");
+                        tm.initiate_model_load(false);
+                    }
+                });
+            }
+        }
         let rm_clone = Arc::clone(&rm);
         std::thread::spawn(move || {
             if let Err(e) = rm_clone.preload_vad() {
@@ -819,9 +834,11 @@ impl ShortcutAction for TranscribeAction {
                     let settings_now = get_settings(&ah);
                     // Set when the cloud model already did the post-processing.
                     let mut cloud_result = None;
+                    // Set when the cloud was unreachable and the local model ran.
+                    let mut fell_back_to_local = false;
                     let transcription_result =
                         if crate::cloud_transcription::is_enabled(&settings_now) {
-                            match complete_unless_cancelled(
+                            let outcome = complete_unless_cancelled(
                                 crate::cloud_transcription::transcribe(
                                     &settings_now,
                                     &samples,
@@ -829,8 +846,8 @@ impl ShortcutAction for TranscribeAction {
                                 ),
                                 || rm.was_cancelled_since(cancel_generation),
                             )
-                            .await
-                            {
+                            .await;
+                            match outcome {
                                 // Cancelled: the check after the WAV save ends the session.
                                 None => Err(anyhow::anyhow!("Transcription cancelled")),
                                 Some(Ok(result)) => {
@@ -840,6 +857,17 @@ impl ShortcutAction for TranscribeAction {
                                         text,
                                         language: None,
                                     })
+                                }
+                                Some(Err(e))
+                                    if e.unreachable
+                                        && crate::cloud_transcription::can_fall_back(
+                                            &settings_now,
+                                        ) =>
+                                {
+                                    warn!("{e}; transcribing with the local model instead");
+                                    fell_back_to_local = true;
+                                    tm.initiate_model_load(false);
+                                    tm.transcribe_recording(samples)
                                 }
                                 Some(Err(e)) => Err(anyhow::anyhow!(e)),
                             }
@@ -1002,12 +1030,22 @@ impl ShortcutAction for TranscribeAction {
                                                             NoticeSource::Dictation,
                                                         );
                                                     }
-                                                    let notice = post_process_failed.then(|| {
-                                                        Notice::new(
-                                                            NoticeCode::PostProcessFailed,
+                                                    // One notice per source: the
+                                                    // fallback one also covers an
+                                                    // offline post-processing failure.
+                                                    let notice = if fell_back_to_local {
+                                                        Some(Notice::new(
+                                                            NoticeCode::CloudFallbackLocal,
                                                             NoticeSource::Dictation,
-                                                        )
-                                                    });
+                                                        ))
+                                                    } else {
+                                                        post_process_failed.then(|| {
+                                                            Notice::new(
+                                                                NoticeCode::PostProcessFailed,
+                                                                NoticeSource::Dictation,
+                                                            )
+                                                        })
+                                                    };
                                                     (TranscriptionOutcome::Typed, notice)
                                                 }
                                                 Ok(utils::PasteOutcome::Blocked) => (
