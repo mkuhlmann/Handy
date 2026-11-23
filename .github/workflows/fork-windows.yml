@@ -14,7 +14,7 @@ jobs:
     with:
       platform: "windows-latest"
       target: "x86_64-pc-windows-msvc"
-      build-args: "--bundles nsis"
+      build-args: ""
       sign-binaries: false
       asset-prefix: "handy-fork"
       upload-artifacts: true
