@@ -1,0 +1,21 @@
+name: "Fork Windows Build"
+
+# Unsigned Windows x64 build for this fork. tauri.conf.json in the fork has no
+# sign command and no updater artifacts, since upstream's signing keys are not
+# available here.
+on:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build.yml
+    with:
+      platform: "windows-latest"
+      target: "x86_64-pc-windows-msvc"
+      build-args: "--bundles nsis"
+      sign-binaries: false
+      asset-prefix: "handy-fork"
+      upload-artifacts: true
+    secrets: inherit
